@@ -1,14 +1,61 @@
+import webbrowser
+
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import os
 import torch
 import subprocess
 from pathlib import Path
+import math
+from IPython.display import display, HTML
+
+
+# our additions ----
+def nonlinear_transform(weight):  # Could be used to add contrast and highlight main weights
+    return math.copysign(math.pow(abs(weight), 2), weight)
+
+
+def heatmap(tokens, weights):
+    html_string = '<p>'
+    for i in range(0, len(tokens)):
+        # transformed_weight = nonlinear_transform(weights[i])
+        transformed_weight = weights[i]
+        current_token = tokens[i]
+        prefix = ""
+        text_fragment = current_token
+
+        if current_token == '<s>':
+            text_fragment = '[BOS]'
+        elif current_token[0] == '▁' and len(current_token) >= 2:
+            text_fragment = current_token[1:]
+        elif current_token[0] == '▁':
+            text_fragment = ""
+
+        if current_token[0] == '▁':
+            prefix = " "
+
+        if -0.1 < transformed_weight < 0.1:
+            html_string += prefix + f'<span>{text_fragment}</span>'
+        elif transformed_weight > 0:
+            intensity = int((1 - transformed_weight) * 50 + 50)  # Lightness varies from 50% to 100%
+            html_string += prefix + f'<span style="background-color: hsl(0, 100%, {intensity}%) ; color: black;">{text_fragment}</span>'
+        else:
+            intensity = int((1 + transformed_weight) * 50 + 50)  # Lightness varies from 50% to 100%
+            html_string += prefix + f'<span style="background-color: hsl(240, 100%, {intensity}%); color: black;">{text_fragment}</span>'
+    html_string += '</p>'
+    file_path = 'output.html'
+
+    # Write the HTML string to a file
+    with open(file_path, 'w') as file:
+        file.write(html_string)
+
+    webbrowser.open('file://' + os.path.realpath(file_path))
+
 
 def _apply_colormap(relevance, cmap):
-    
     colormap = cm.get_cmap(cmap)
     return colormap(colors.Normalize(vmin=-1, vmax=1)(relevance))
+
 
 def _generate_latex(words, relevances, cmap="bwr"):
     """
@@ -28,7 +75,7 @@ def _generate_latex(words, relevances, cmap="bwr"):
 
     for word, relevance in zip(words, relevances):
         rgb = _apply_colormap(relevance, cmap)
-        r, g, b = int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255)
+        r, g, b = int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)
 
         if word.startswith('▁'):
             word = word.replace('▁', ' ')
@@ -36,17 +83,16 @@ def _generate_latex(words, relevances, cmap="bwr"):
         else:
             latex_code += f'\\colorbox[RGB]{{{r},{g},{b}}}{{\\strut {word}}}'
 
-
     latex_code += r'}}\end{document}'
 
     return latex_code
 
-    
+
 def _compile_latex_to_pdf(latex_code, path='word_colors.pdf', delete_aux_files=True, backend='xelatex'):
     """
     Compile LaTeX code to a PDF file using pdflatex or xelatex.
     """
-    
+
     # Save LaTeX code to a file
     path = Path(path)
     os.makedirs(path.parent, exist_ok=True)
@@ -104,4 +150,3 @@ def clean_tokens(words):
                 words[i] = word.replace(special_character, '\\' + special_character)
 
     return words
-
