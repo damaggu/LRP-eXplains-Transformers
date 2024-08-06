@@ -1,0 +1,7 @@
+transformers==4.39.3
+torch==2.2.2
+accelerate
+tabulate
+matplotlib
+bitsandbytes
+open_clip_torch
