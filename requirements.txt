@@ -5,3 +5,6 @@ tabulate
 matplotlib
 bitsandbytes
 open_clip_torch
+IPython
+bertviz
+numba
