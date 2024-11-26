@@ -42,7 +42,7 @@ def hidden_relevance_hook(module, input, output):
 if __name__ == "__main__":
 
     # load model & apply AttnLRP
-    model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, device_map=device, force_download=True)
+    model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, device_map=device)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model.eval()
     attnlrp.register(model)
