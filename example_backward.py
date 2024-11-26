@@ -4,9 +4,12 @@ from transformers import AutoTokenizer
 from lxt.models.llama import LlamaForCausalLM, attnlrp
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
-device = "cuda:1"
-model_path = "/home/achtibat/PythonProjects/crp-for-multimodal/LLama/Llama-2-7b-chat-hf"
+device = "cuda:0"
+model_path = "./Llama-2-7b-chat-hf"
+if not os.path.exists(model_path):
+    model_path = "./Llama-2-7b-hf"
 
 def save_heatmap(values, tokens, figsize, title, save_path):
     fig, ax = plt.subplots(figsize=figsize)  # Increase the size of the figure
@@ -39,7 +42,7 @@ def hidden_relevance_hook(module, input, output):
 if __name__ == "__main__":
 
     # load model & apply AttnLRP
-    model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, device_map=device)
+    model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, device_map=device, force_download=True)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model.eval()
     attnlrp.register(model)
@@ -62,7 +65,9 @@ if __name__ == "__main__":
     # trace relevance through layers
     relevance_trace = []
     for i in range(0, 32):
-        relevance = model.model.layers[i].hidden_relevance[0].sum(-1)
+        # TODO: double ceck this --
+        relevance = model.model.layers[i].attention.hidden_relevance[0].sum(-1)
+        # ----
         relevance = relevance / relevance.abs().max()
         relevance_trace.append(relevance)
 
@@ -70,5 +75,16 @@ if __name__ == "__main__":
 
     tokens = tokenizer.convert_ids_to_tokens(input_ids[0])
     save_heatmap(relevance_trace.float().numpy().T, tokens, (20, 10), f"Latent Relevance Trace (Normalized)", f'latent_rel_trace.png')
+
+# syntax vs. semantics
+# -> predicting next token in a sequence
+# activation patching
+# one sentence regarding syntax, one regarding semantics
+
+# 2 tasks, -> check relevances for each, then compare the differences in activations, across layers
+# how does in-context change things?
+# polysemantic -> superposition ; anthropic -> sparse autoencoder, unpack vectors that are not orthonormal -> Zs of the autoencoder turn out to be monosemantic
+# extracting interpretable features from calude 3 sonnet
+# ->
 
 
